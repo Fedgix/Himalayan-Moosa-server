@@ -19,7 +19,11 @@ export class GoogleSheetsHandler {
     async initializeAuth() {
         try {
             if (!fs.existsSync(this.serviceAccountPath)) {
-                throw new Error(`Service account file not found at: ${this.serviceAccountPath}`);
+                console.warn('⚠️  Google Sheets disabled: Service account file not found at', this.serviceAccountPath);
+                this.auth = null;
+                this.sheets = null;
+                this.drive = null;
+                return;
             }
 
             const credentials = JSON.parse(fs.readFileSync(this.serviceAccountPath, 'utf8'));
@@ -44,12 +48,15 @@ export class GoogleSheetsHandler {
             await this.testConnection();
             
         } catch (error) {
-            console.error('❌ Failed to initialize Google Sheets API:', error);
-            throw error;
+            console.warn('⚠️  Google Sheets disabled:', error.message);
+            this.auth = null;
+            this.sheets = null;
+            this.drive = null;
         }
     }
 
     async testConnection() {
+        if (!this.drive) return false;
         try {
             const response = await this.drive.files.list({
                 pageSize: 1,
@@ -58,12 +65,19 @@ export class GoogleSheetsHandler {
             console.log('✅ Google Drive connection test successful');
             return true;
         } catch (error) {
-            console.error('❌ Google Drive connection test failed:', error);
-            throw error;
+            console.warn('⚠️  Google Drive connection test failed:', error.message);
+            return false;
         }
     }
 
+    isAvailable() {
+        return this.sheets !== null && this.drive !== null;
+    }
+
     async createSpreadsheet(title, folderName = 'FormData') {
+        if (!this.sheets || !this.drive) {
+            throw new Error('Google Sheets not configured (service account file missing)');
+        }
         try {
             console.log(`📊 Creating spreadsheet: ${title}`);
             
@@ -199,6 +213,9 @@ export class GoogleSheetsHandler {
     }
 
     async addContactToSheet(contactData) {
+        if (!this.sheets) {
+            return { success: false, message: 'Google Sheets not configured (service account file missing)' };
+        }
         try {
             console.log('📝 Adding contact to sheet:', contactData.name);
             
@@ -396,6 +413,9 @@ export class GoogleSheetsHandler {
     }
 
     async addOrderToSheet(orderData) {
+        if (!this.sheets) {
+            return { success: false, message: 'Google Sheets not configured (service account file missing)' };
+        }
         try {
             let spreadsheetId = this.spreadsheetIds.orders;
 
