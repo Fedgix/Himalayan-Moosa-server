@@ -10,7 +10,7 @@ export const uploadService = {
       return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
-            folder: 'janatha-garage',
+            folder: 'moosa-garage',
             resource_type: 'auto',
             allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
             transformation: [
@@ -51,7 +51,7 @@ export const uploadService = {
       const public_id = filename.split('.')[0];
       
       // Remove folder path if exists
-      const folderPath = 'janatha-garage/';
+      const folderPath = 'moosa-garage/';
       const finalPublicId = public_id.replace(folderPath, '');
       
       const result = await cloudinary.uploader.destroy(finalPublicId);

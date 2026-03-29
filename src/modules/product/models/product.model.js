@@ -327,7 +327,7 @@ productSchema.methods.generateStructuredSKU = function() {
   const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
   
   // Try to create a structured SKU based on available data
-  let sku = 'JG'; // Janatha Garage prefix
+  let sku = 'MG'; // Moosa Garage prefix
   
   // Add category prefix if available
   if (this.categoryId) {

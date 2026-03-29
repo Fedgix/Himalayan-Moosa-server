@@ -14,8 +14,8 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:5000',
-    'https://admin.janathagarage.in',
-    'https://www.janathagarage.in',
+    'https://admin.moosagarage.in',
+    'https://www.moosagarage.in',
 ].filter(Boolean);
 
 // CORS configuration - Simplified and permissive for development

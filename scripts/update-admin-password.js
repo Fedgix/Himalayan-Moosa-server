@@ -19,7 +19,7 @@ import User from '../src/modules/users/models/user.model.js';
 const updateAdminPassword = async () => {
     try {
         // Connect to MongoDB
-        const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/janatha-garage';
+        const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/moosa-garage';
         await mongoose.connect(mongoUri);
         console.log('✅ Connected to MongoDB');
 
@@ -33,7 +33,7 @@ const updateAdminPassword = async () => {
 
         // Hash new password
         const saltRounds = 12;
-        const hashedPassword = await bcrypt.hash('Admin@jantha', saltRounds);
+        const hashedPassword = await bcrypt.hash('Admin@moosa', saltRounds);
 
         // Update admin password
         admin.password = hashedPassword;
@@ -42,7 +42,7 @@ const updateAdminPassword = async () => {
         console.log('✅ Admin password updated successfully!');
         console.log('Admin credentials:');
         console.log('📧 Email: Admin@gmail.com');
-        console.log('🔑 Password: Admin@jantha');
+        console.log('🔑 Password: Admin@moosa');
         console.log('👤 Role: admin');
         console.log('🆔 ID:', admin._id);
 

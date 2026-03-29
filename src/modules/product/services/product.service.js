@@ -61,7 +61,7 @@ class ProductService {
       const timestamp = Date.now().toString().slice(-6);
       const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
       
-      let sku = 'JG'; // Janatha Garage prefix
+      let sku = 'MG'; // Moosa Garage prefix
       
       // Add part type prefix
       switch(partType) {

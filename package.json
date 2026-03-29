@@ -1,14 +1,15 @@
 {
-  "name": "janatha-garage-server",
+  "name": "moosa-garage-server",
   "version": "1.0.0",
-  "description": "Janatha Garage - Automobile parts e-commerce server",
+  "description": "Moosa Garage - Automobile parts e-commerce server",
   "license": "ISC",
   "author": "fedgix technologies",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon src/frameworks/webserver/server.js",
-    "start": "cross-env NODE_ENV=production nodemon src/frameworks/webserver/server.js"
+    "start": "cross-env NODE_ENV=production nodemon src/frameworks/webserver/server.js",
+    "create-admin-dashboard": "cross-env NODE_ENV=development node scripts/create-dashboard-admin.js"
   },
   "dependencies": {
     "axios": "^1.6.8",

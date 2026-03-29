@@ -23,19 +23,19 @@ const createAdminInCorrectDB = async () => {
         
         console.log('🔗 Connecting to MongoDB...');
         console.log('📊 Database URI:', MONGO_URI);
-        console.log('🗄️  Database Name: janatha-garage');
+        console.log('🗄️  Database Name: moosa-garage');
         
         // Connect to MongoDB with correct database name
         await mongoose.connect(MONGO_URI, { 
-            dbName: 'janatha-garage'
+            dbName: 'moosa-garage'
         });
-        console.log('✅ Connected to MongoDB with database: janatha-garage');
+        console.log('✅ Connected to MongoDB with database: moosa-garage');
 
         // Check if admin already exists
         const existingAdmin = await User.findOne({ email: 'Admin@gmail.com' });
         
         if (existingAdmin) {
-            console.log('⚠️  Admin already exists in janatha-garage database');
+            console.log('⚠️  Admin already exists in moosa-garage database');
             console.log('Admin details:', {
                 id: existingAdmin._id,
                 name: existingAdmin.name,
@@ -49,17 +49,17 @@ const createAdminInCorrectDB = async () => {
             if (!existingAdmin.password) {
                 console.log('🔑 Adding password to existing admin...');
                 const saltRounds = 12;
-                const hashedPassword = await bcrypt.hash('Admin@jantha', saltRounds);
+                const hashedPassword = await bcrypt.hash('Admin@moosa', saltRounds);
                 existingAdmin.password = hashedPassword;
                 await existingAdmin.save();
                 console.log('✅ Password added to existing admin');
             }
         } else {
-            console.log('➕ Creating new admin in janatha-garage database...');
+            console.log('➕ Creating new admin in moosa-garage database...');
             
             // Hash password
             const saltRounds = 12;
-            const hashedPassword = await bcrypt.hash('Admin@jantha', saltRounds);
+            const hashedPassword = await bcrypt.hash('Admin@moosa', saltRounds);
 
             // Create admin user
             const adminUser = new User({
@@ -71,7 +71,7 @@ const createAdminInCorrectDB = async () => {
             });
 
             await adminUser.save();
-            console.log('✅ Admin created successfully in janatha-garage database!');
+            console.log('✅ Admin created successfully in moosa-garage database!');
             console.log('Admin ID:', adminUser._id);
         }
         
@@ -87,7 +87,7 @@ const createAdminInCorrectDB = async () => {
         
         console.log('\n🔐 Login Credentials:');
         console.log('📧 Email: Admin@gmail.com');
-        console.log('🔑 Password: Admin@jantha');
+        console.log('🔑 Password: Admin@moosa');
         
         console.log('\n🗄️  Database Info:');
         console.log('Database Name:', mongoose.connection.db.databaseName);

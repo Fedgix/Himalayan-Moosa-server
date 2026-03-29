@@ -18,8 +18,11 @@ import User from '../src/modules/users/models/user.model.js';
 
 const createAdmin = async () => {
     try {
-        // Connect to MongoDB
-        const mongoUri = process.env.MONGO_URI || 'mongodb+srv://janathagarage633:kuKPsaaE2YmZMa4o@janathagarage.nubic2v.mongodb.net/?retryWrites=true&w=majority&appName=Janathagarage';
+        const mongoUri = process.env.MONGO_URI;
+        if (!mongoUri) {
+            console.error('❌ Set MONGO_URI in server/.env.development');
+            process.exit(1);
+        }
         await mongoose.connect(mongoUri);
         console.log('✅ Connected to MongoDB');
 
@@ -40,7 +43,7 @@ const createAdmin = async () => {
 
         // Hash password
         const saltRounds = 12;
-        const hashedPassword = await bcrypt.hash('Admin@jantha', saltRounds);
+        const hashedPassword = await bcrypt.hash('Admin@moosa', saltRounds);
 
         // Create admin user
         const adminUser = new User({
@@ -56,7 +59,7 @@ const createAdmin = async () => {
         console.log('✅ Admin created successfully!');
         console.log('Admin credentials:');
         console.log('📧 Email: Admin@gmail.com');
-        console.log('🔑 Password: Admin@jantha');
+        console.log('🔑 Password: Admin@moosa');
         console.log('👤 Role: admin');
         console.log('🆔 ID:', adminUser._id);
 

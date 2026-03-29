@@ -1,9 +1,20 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Connect to MongoDB
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env.development') });
+
+// Connect to MongoDB (uses MONGO_URI from server/.env.development)
 const connectDB = async () => {
   try {
-    await mongoose.connect('mongodb+srv://janathagarage633:kuKPsaaE2YmZMa4o@janathagarage.nubic2v.mongodb.net');
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+      console.error('❌ Set MONGO_URI in server/.env.development');
+      process.exit(1);
+    }
+    await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB');
   } catch (error) {
     console.error('MongoDB connection error:', error);
