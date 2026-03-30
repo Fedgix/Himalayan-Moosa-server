@@ -43,6 +43,12 @@ class CategoryController {
         return sendSuccess(res, result.message, result.data, 200);
     });
 
+    getAllCategoriesForAdmin = catchAsync(async (req, res) => {
+        const filters = req.query;
+        const result = await this.categoryService.getAllCategoriesForAdmin(filters);
+        return sendSuccess(res, result.message, result.data, 200);
+    });
+
     getCategoriesWithPagination = catchAsync(async (req, res) => {
         const filters = req.query;
         const options = {

@@ -102,6 +102,23 @@ class CategoryService {
         }
     }
 
+    async getAllCategoriesForAdmin(filters = {}) {
+        try {
+            const adminFilters = { ...filters, includeInactive: true };
+            const categories = await this.categoryRepository.findAll(adminFilters);
+            const categoryEntities = CategoryEntity.fromModelList(categories);
+
+            return {
+                success: true,
+                data: categoryEntities.map(entity => entity.toJSON()),
+                message: 'All categories (active and inactive) retrieved successfully',
+                count: categoryEntities.length
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
+
     async getCategoriesWithPagination(filters = {}, options = {}) {
         try {
             const result = await this.categoryRepository.findWithPagination(filters, options);

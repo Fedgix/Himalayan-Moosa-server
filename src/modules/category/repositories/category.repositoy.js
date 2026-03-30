@@ -40,7 +40,8 @@ class CategoryRepository {
             console.log('🔍 findAll repository called');
             console.log('🔍 Filters:', filters);
             
-            const query = { isActive: true };
+            const includeInactive = filters.includeInactive === true || filters.includeInactive === 'true';
+            const query = includeInactive ? {} : { isActive: true };
             console.log('🔍 Base query:', query);
             
             if (filters.name) {
