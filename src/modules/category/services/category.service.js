@@ -1,6 +1,8 @@
 import CategoryRepository from "../repositories/category.repositoy.js";
 import { CategoryEntity } from "../entity/category.entity.js";
 import { uploadService } from "../../upload/services/upload.service.js";
+import CustomError from "../../../utils/custom.error.js";
+import HttpStatusCode from "../../../utils/http.status.codes.js";
 
 class CategoryService {
     constructor() {
@@ -176,13 +178,17 @@ class CategoryService {
             const existingCategory = await this.categoryRepository.findById(id);
             
             if (!existingCategory) {
-                throw new Error('Category not found');
+                throw new CustomError('Category not found', HttpStatusCode.NOT_FOUND, true);
             }
 
             // Check for child categories
             const hasChildren = await this.categoryRepository.hasChildren(id);
             if (hasChildren) {
-                throw new Error('Cannot delete category with child categories. Remove child categories first.');
+                throw new CustomError(
+                    'Cannot delete category with child categories. Remove child categories first.',
+                    HttpStatusCode.BAD_REQUEST,
+                    true
+                );
             }
 
             // Delete image from Cloudinary before deleting the record

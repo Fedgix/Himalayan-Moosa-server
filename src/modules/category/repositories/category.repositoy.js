@@ -1,6 +1,32 @@
 import Category from "../models/category.model.js";
 
 class CategoryRepository {
+    /**
+     * Shared MongoDB query for public list + pagination (excludes page/limit/sort from filters).
+     */
+    _buildFilterQuery(filters = {}) {
+        const includeInactive = filters.includeInactive === true || filters.includeInactive === 'true';
+        const query = includeInactive ? {} : { isActive: true };
+
+        if (filters.name) {
+            query.name = { $regex: filters.name, $options: 'i' };
+        }
+
+        if (filters.slug) {
+            query.slug = filters.slug;
+        }
+
+        if (filters.parentCategory !== undefined) {
+            query.parentCategory = filters.parentCategory;
+        }
+
+        if (filters.level !== undefined) {
+            query.level = filters.level;
+        }
+
+        return query;
+    }
+
     async create(categoryData) {
         try {
             const newCategory = new Category(categoryData);
@@ -39,29 +65,10 @@ class CategoryRepository {
         try {
             console.log('🔍 findAll repository called');
             console.log('🔍 Filters:', filters);
-            
-            const includeInactive = filters.includeInactive === true || filters.includeInactive === 'true';
-            const query = includeInactive ? {} : { isActive: true };
-            console.log('🔍 Base query:', query);
-            
-            if (filters.name) {
-                query.name = { $regex: filters.name, $options: 'i' };
-            }
-            
-            if (filters.slug) {
-                query.slug = filters.slug;
-            }
-            
-            if (filters.parentCategory !== undefined) {
-                query.parentCategory = filters.parentCategory;
-            }
-            
-            if (filters.level !== undefined) {
-                query.level = filters.level;
-            }
 
+            const query = this._buildFilterQuery(filters);
             console.log('🔍 Final query:', query);
-            
+
             const categories = await Category.find(query)
                 .populate('parent')
                 .populate('subcategories')
@@ -79,11 +86,14 @@ class CategoryRepository {
         }
     }
 
-    async findWithPagination(filter = {}, options = {}) {
+    async findWithPagination(filters = {}, options = {}) {
         try {
+            const filter = this._buildFilterQuery(filters);
             const { page = 1, limit = 10, sort = { displayOrder: 1, name: 1 } } = options;
-            const skip = (page - 1) * limit;
-            
+            const safeLimit = Math.min(Math.max(1, Number(limit) || 10), 100);
+            const safePage = Math.max(1, Number(page) || 1);
+            const skip = (safePage - 1) * safeLimit;
+
             const [data, total] = await Promise.all([
                 Category.find(filter)
                     .populate('parent')
@@ -91,17 +101,17 @@ class CategoryRepository {
                     .populate('products')
                     .sort(sort)
                     .skip(skip)
-                    .limit(limit),
+                    .limit(safeLimit),
                 Category.countDocuments(filter)
             ]);
-            
+
             return {
                 data,
                 pagination: {
-                    page,
-                    limit,
+                    page: safePage,
+                    limit: safeLimit,
                     total,
-                    pages: Math.ceil(total / limit)
+                    pages: safeLimit ? Math.ceil(total / safeLimit) : 0
                 }
             };
         } catch (error) {

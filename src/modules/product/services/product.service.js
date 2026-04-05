@@ -9,8 +9,39 @@ class ProductService {
     this.productRepository = new ProductRepository();
   }
 
+  normalizeCompatibilityInput(productData = {}) {
+    if (!productData.compatibility || !Array.isArray(productData.compatibility.specificVariants)) {
+      return productData;
+    }
+
+    // Accept both:
+    // 1) ["variantId1", "variantId2"]
+    // 2) [{ variantId: "...", yearRange: {...} }]
+    productData.compatibility.specificVariants = productData.compatibility.specificVariants
+      .filter((item) => item !== null && item !== undefined && item !== '')
+      .map((item) => {
+        if (typeof item === 'string') {
+          return { variantId: item };
+        }
+
+        if (typeof item === 'object') {
+          // Handle frontend variants like { id: "..."} as well.
+          if (!item.variantId && item.id) {
+            return { ...item, variantId: item.id };
+          }
+          return item;
+        }
+
+        return item;
+      });
+
+    return productData;
+  }
+
   async createProduct(productData) {
     try {
+      productData = this.normalizeCompatibilityInput(productData);
+
       // Basic validation (SKU and slug are now optional as they'll be auto-generated)
       if (!productData.name) {
         throw new Error('Product name is required');
@@ -518,6 +549,8 @@ class ProductService {
 
   async updateProduct(id, updateData) {
     try {
+      updateData = this.normalizeCompatibilityInput(updateData);
+
       const existingProduct = await this.productRepository.findById(id);
       
       if (!existingProduct) {
@@ -1262,6 +1295,8 @@ class ProductService {
 
   async createVariant(variantData, parentId) {
     try {
+      variantData = this.normalizeCompatibilityInput(variantData);
+
       // Validate parent product exists
       const parentProduct = await this.productRepository.findById(parentId);
       if (!parentProduct) {

@@ -1,3 +1,5 @@
+// Load dotenv before routes (routes pull in Cloudinary, DB helpers, etc.)
+import '../../config/env.js';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser'; 
@@ -9,14 +11,23 @@ import morgan from 'morgan';
 
 const app = express();
 
-const allowedOrigins = [
-    config.FRONTEND_URL,
+/** Admin (Vite) + main site dev — always allow, even if NODE_ENV is production locally */
+const localFrontendOrigins = new Set([
     'http://localhost:3000',
     'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+]);
+
+const allowedOrigins = [
+    config.FRONTEND_URL,
+    ...localFrontendOrigins,
     'http://localhost:5000',
     'https://admin.moosagarage.in',
     'https://www.moosagarage.in',
-].filter(Boolean);
+];
+
+const allowedOriginsUnique = [...new Set(allowedOrigins.filter(Boolean))];
 
 // CORS configuration - Simplified and permissive for development
 const corsOptions = {
@@ -25,19 +36,23 @@ const corsOptions = {
         if (!origin) {
             return callback(null, true);
         }
-        
+
+        if (localFrontendOrigins.has(origin)) {
+            return callback(null, true);
+        }
+
         // In development, allow all localhost origins
         if (process.env.NODE_ENV !== 'production') {
             if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
                 return callback(null, true);
             }
         }
-        
+
         // Check allowed origins
-        if (allowedOrigins.includes(origin)) {
+        if (allowedOriginsUnique.includes(origin)) {
             return callback(null, true);
         }
-        
+
         // Default deny
         callback(new Error('Not allowed by CORS'));
     },

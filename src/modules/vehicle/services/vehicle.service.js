@@ -3,6 +3,8 @@ import { uploadService } from '../../upload/services/upload.service.js';
 import { VehicleMakeEntity } from '../entity/vehicle-make.entity.js';
 import { VehicleModelEntity } from '../entity/vehicle-model.entity.js';
 import { VehicleVariantEntity } from '../entity/vehicle-variant.entity.js';
+import CustomError from '../../../utils/custom.error.js';
+import HttpStatusCode from '../../../utils/http.status.codes.js';
 
 class VehicleService {
     constructor() {
@@ -295,7 +297,11 @@ class VehicleService {
         try {
             // Basic validation
             if (!variantData.modelId || !variantData.name || !variantData.slug || !variantData.yearRange?.startYear) {
-                throw new Error('Model ID, name, slug, and start year are required');
+                throw new CustomError(
+                    'Model ID, name, slug, and start year are required',
+                    HttpStatusCode.BAD_REQUEST,
+                    true
+                );
             }
 
             const variant = await this.vehicleRepository.createVariant(variantData);

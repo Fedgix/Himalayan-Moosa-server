@@ -25,21 +25,22 @@ class CategoryController {
     });
 
     getAllCategories = catchAsync(async (req, res) => {
-        console.log('🔍 getAllCategories called');
-        console.log('🔍 Request query:', req.query);
-        
-        const filters = req.query;
-        console.log('🔍 Filters:', filters);
-        
-        const result = await this.categoryService.getAllCategories(filters);
-        console.log('🔍 Service result:', result);
-        console.log('🔍 Categories count:', result.count);
-        console.log('🔍 Categories data length:', result.data?.length);
-        
-        console.log('🔍 Final response data:', result.data);
-        console.log('🔍 Response data type:', typeof result.data);
-        console.log('🔍 Is array:', Array.isArray(result.data));
-        
+        const { page, limit, ...filters } = req.query;
+        const usePagination = page !== undefined || limit !== undefined;
+
+        if (usePagination) {
+            const options = {
+                page: Math.max(1, parseInt(page, 10) || 1),
+                limit: Math.min(100, Math.max(1, parseInt(limit, 10) || 10))
+            };
+            const result = await this.categoryService.getCategoriesWithPagination(filters, options);
+            return sendSuccess(res, result.message, {
+                items: result.data,
+                pagination: result.pagination
+            }, 200);
+        }
+
+        const result = await this.categoryService.getAllCategories(req.query);
         return sendSuccess(res, result.message, result.data, 200);
     });
 
@@ -50,13 +51,16 @@ class CategoryController {
     });
 
     getCategoriesWithPagination = catchAsync(async (req, res) => {
-        const filters = req.query;
+        const { page, limit, ...filters } = req.query;
         const options = {
-            page: parseInt(req.query.page) || 1,
-            limit: parseInt(req.query.limit) || 10
+            page: Math.max(1, parseInt(page, 10) || 1),
+            limit: Math.min(100, Math.max(1, parseInt(limit, 10) || 10))
         };
         const result = await this.categoryService.getCategoriesWithPagination(filters, options);
-        return sendSuccess(res, result.message, result.data, 200);
+        return sendSuccess(res, result.message, {
+            items: result.data,
+            pagination: result.pagination
+        }, 200);
     });
 
     updateCategory = catchAsync(async (req, res) => {
