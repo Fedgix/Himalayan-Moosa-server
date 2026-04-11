@@ -1,5 +1,6 @@
 import Wishlist from '../models/wishlist.model.js';
 import WishlistEntity from '../entity/wishlist.entity.js';
+import { ownerQuery } from '../../../utils/cartWishlistOwner.js';
 
 class WishlistRepository {
     async create(wishlistData) {
@@ -30,9 +31,9 @@ class WishlistRepository {
         }
     }
 
-    async findByUser(userId, filters = {}) {
+    async findByOwner(owner, filters = {}) {
         try {
-            const query = { userId };
+            const query = { ...ownerQuery(owner) };
             
             if (filters.priority) {
                 query.priority = filters.priority;
@@ -76,9 +77,9 @@ class WishlistRepository {
         }
     }
 
-    async findByUserAndProduct(userId, productId) {
+    async findByOwnerAndProduct(owner, productId) {
         try {
-            const wishlist = await Wishlist.findOne({ userId, productId })
+            const wishlist = await Wishlist.findOne({ ...ownerQuery(owner), productId })
                 .populate({
                     path: 'product',
                     select: 'name description pricing images category brand sku isActive inventory'
@@ -94,9 +95,9 @@ class WishlistRepository {
         }
     }
 
-    async findByUserProductVariant(userId, productId, variantId) {
+    async findByOwnerProductVariant(owner, productId, variantId) {
         try {
-            const query = { userId, productId };
+            const query = { ...ownerQuery(owner), productId };
             if (variantId) {
                 query.variantId = variantId;
             } else {
@@ -188,27 +189,27 @@ class WishlistRepository {
         }
     }
 
-    async deleteByUserAndProduct(userId, productId) {
+    async deleteByOwnerAndProduct(owner, productId) {
         try {
-            const wishlist = await Wishlist.findOneAndDelete({ userId, productId });
+            const wishlist = await Wishlist.findOneAndDelete({ ...ownerQuery(owner), productId });
             return WishlistEntity.fromModel(wishlist);
         } catch (error) {
             throw error;
         }
     }
 
-    async deleteByUser(userId) {
+    async deleteByOwner(owner) {
         try {
-            const result = await Wishlist.deleteMany({ userId });
+            const result = await Wishlist.deleteMany(ownerQuery(owner));
             return result.deletedCount;
         } catch (error) {
             throw error;
         }
     }
 
-    async countByUser(userId) {
+    async countByOwner(owner) {
         try {
-            return await Wishlist.countDocuments({ userId });
+            return await Wishlist.countDocuments(ownerQuery(owner));
         } catch (error) {
             throw error;
         }
@@ -230,10 +231,10 @@ class WishlistRepository {
         }
     }
 
-    async getWishlistStats(userId) {
+    async getWishlistStats(owner) {
         try {
             const stats = await Wishlist.aggregate([
-                { $match: { userId } },
+                { $match: ownerQuery(owner) },
                 {
                     $group: {
                         _id: null,
@@ -270,9 +271,9 @@ class WishlistRepository {
         }
     }
 
-    async searchWishlist(userId, searchTerm) {
+    async searchWishlist(owner, searchTerm) {
         try {
-            const wishlistItems = await Wishlist.find({ userId })
+            const wishlistItems = await Wishlist.find({ ...ownerQuery(owner) })
                 .populate({
                     path: 'productId',
                     match: {

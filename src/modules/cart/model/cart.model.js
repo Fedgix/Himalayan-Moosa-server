@@ -23,16 +23,23 @@ const cartSchema = new Schema({
             message: 'Please provide a valid variant ID'
         }
     },
-    userId: { 
-        type: Schema.Types.ObjectId, 
-        ref: 'User',
-        required: [true, 'User ID is required'],
+    userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: false,
+        default: undefined,
         validate: {
-            validator: function(v) {
-                return mongoose.Types.ObjectId.isValid(v);
+            validator: function (v) {
+                return v == null || mongoose.Types.ObjectId.isValid(v);
             },
-            message: 'Please provide a valid user ID'
-        }
+            message: "Please provide a valid user ID",
+        },
+    },
+    guestId: {
+        type: String,
+        trim: true,
+        maxlength: 128,
+        default: undefined,
     },
     quantity: { 
         type: Number, 
@@ -52,8 +59,35 @@ const cartSchema = new Schema({
     toObject: { virtuals: true }
 });
 
-// Compound index to ensure user can't have duplicate product-variant combinations
-cartSchema.index({ userId: 1, productId: 1, variantId: 1 }, { unique: true });
+cartSchema.pre("validate", function (next) {
+    const hasUser = this.userId != null;
+    const hasGuest = this.guestId != null && String(this.guestId).trim() !== "";
+    if (!hasUser && !hasGuest) {
+        this.invalidate("guestId", "Either a logged-in user or guest session (guestId) is required");
+    }
+    if (hasUser && hasGuest) {
+        this.guestId = undefined;
+    }
+    next();
+});
+
+// One line per user per product/variant; one line per guest per product/variant
+cartSchema.index(
+    { userId: 1, productId: 1, variantId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { userId: { $exists: true, $ne: null } },
+    }
+);
+cartSchema.index(
+    { guestId: 1, productId: 1, variantId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            guestId: { $exists: true, $type: "string", $ne: "" },
+        },
+    }
+);
 cartSchema.index({ userId: 1 });
 cartSchema.index({ productId: 1 });
 cartSchema.index({ variantId: 1 });

@@ -956,7 +956,7 @@ export const CheckoutService = {
 
             console.log('Clearing cart items after payment for order lines:', orderItems.length);
 
-            const userCart = await cartService.getUserCart(userId);
+            const userCart = await cartService.getUserCart({ userId });
 
             const cartItemsToRemove = userCart.items.filter((cartItem) => {
                 const cpid =
@@ -982,7 +982,7 @@ export const CheckoutService = {
             });
 
             for (const cartItem of cartItemsToRemove) {
-                await cartService.removeCartItem(cartItem._id, userId);
+                await cartService.removeCartItem(cartItem._id, { userId });
                 console.log(`Removed cart item ${cartItem._id}`);
             }
 

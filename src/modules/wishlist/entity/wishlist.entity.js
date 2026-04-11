@@ -7,11 +7,16 @@ class WishlistEntity {
     }
 
     validateAndSetProperties(data) {
-        const { userId, productId, variantId, notes, priority, notifyOnStock, notifyOnPriceDrop } = data;
+        const { userId, guestId, productId, variantId, notes, priority, notifyOnStock, notifyOnPriceDrop } = data;
 
-        // Validate and set userId
-        this.validateUserId(userId);
-        this.userId = typeof userId === 'string' ? userId : userId.toString();
+        this.validateOwner(userId, guestId);
+        if (guestId != null && String(guestId).trim() !== "") {
+            this.guestId = String(guestId).trim().slice(0, 128);
+            this.userId = null;
+        } else {
+            this.userId = typeof userId === "string" ? userId : userId.toString();
+            this.guestId = null;
+        }
 
         // Validate and set productId
         this.validateProductId(productId);
@@ -35,26 +40,24 @@ class WishlistEntity {
         this.notifyOnPriceDrop = notifyOnPriceDrop !== undefined ? Boolean(notifyOnPriceDrop) : true;
     }
 
-    validateUserId(userId) {
+    validateOwner(userId, guestId) {
+        const g = guestId != null ? String(guestId).trim() : "";
+        if (g.length >= 8 && g.length <= 128) {
+            return;
+        }
         if (!userId) {
             throw new CustomError(
-                'User ID is required',
+                "Sign in or provide guestId (or use X-Guest-Id for API).",
                 HttpStatusCode.BAD_REQUEST
             );
         }
-
-        // Convert to string if it's an ObjectId
-        if (typeof userId !== 'string') {
-            userId = userId.toString();
+        let uid = userId;
+        if (typeof uid !== "string") {
+            uid = uid.toString();
         }
-
-        // Basic ObjectId format validation
         const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-        if (!objectIdRegex.test(userId)) {
-            throw new CustomError(
-                'Invalid user ID format',
-                HttpStatusCode.BAD_REQUEST
-            );
+        if (!objectIdRegex.test(uid)) {
+            throw new CustomError("Invalid user ID format", HttpStatusCode.BAD_REQUEST);
         }
     }
 
@@ -198,8 +201,9 @@ class WishlistEntity {
 
     // Method to get clean data for database operations
     toData() {
-        return {
+        const doc = {
             userId: this.userId,
+            guestId: this.guestId,
             productId: this.productId,
             variantId: this.variantId,
             notes: this.notes,
@@ -207,8 +211,14 @@ class WishlistEntity {
             notifyOnStock: this.notifyOnStock,
             notifyOnPriceDrop: this.notifyOnPriceDrop,
             createdAt: this.createdAt,
-            updatedAt: this.updatedAt
+            updatedAt: this.updatedAt,
         };
+        if (doc.userId) {
+            delete doc.guestId;
+        } else {
+            delete doc.userId;
+        }
+        return doc;
     }
 
     // Static method for update entity with partial data
@@ -278,7 +288,8 @@ class WishlistEntity {
         
         // Create entity with minimal data to avoid validation issues
         const entity = new WishlistEntity({
-            userId: wishlistModel.userId?.toString() || wishlistModel.userId,
+            userId: wishlistModel.userId ? wishlistModel.userId.toString() : null,
+            guestId: wishlistModel.guestId || null,
             productId: wishlistModel.productId, // Keep as-is (could be populated object or ID)
             variantId: wishlistModel.variantId, // Keep as-is (could be populated object or ID)
             notes: wishlistModel.notes,

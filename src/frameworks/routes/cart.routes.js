@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { cartController } from "../../modules/cart/controllers/cart.controller.js"; 
+import { cartController } from "../../modules/cart/controllers/cart.controller.js";
 import catchAsync from "../middlewares/catch.async.js";
-import cacheMiddleware from "../middlewares/cache.middleware.js";
-import { authenticateToken } from "../middlewares/auth.middleware.js";
+import { optionalAuthenticateToken, resolveUserOrGuest } from "../middlewares/auth.middleware.js";
 
 const cartRouter = Router();
-cartRouter.use(authenticateToken);
+cartRouter.use(optionalAuthenticateToken);
+cartRouter.use(resolveUserOrGuest);
 
 
 // Add item to cart

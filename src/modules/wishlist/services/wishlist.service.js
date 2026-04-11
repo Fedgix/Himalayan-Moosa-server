@@ -2,17 +2,23 @@ import WishlistRepository from '../repository/wishlist.repository.js';
 import WishlistEntity from '../entity/wishlist.entity.js';
 import CustomError from '../../../utils/custom.error.js';
 import HttpStatusCode from '../../../utils/http.status.codes.js';
+import { itemBelongsToOwner } from '../../../utils/cartWishlistOwner.js';
 
 class WishlistService {
     constructor() {
         this.wishlistRepository = new WishlistRepository();
     }
 
-    async addToWishlist(wishlistData) {
+    async addToWishlist(owner, body) {
         try {
-            // Check if item already exists in user's wishlist (with variant support)
-            const existingItem = await this.wishlistRepository.findByUserProductVariant(
-                wishlistData.userId, 
+            const { userId: _ignoreUser, guestId: _ignoreGuest, ...rest } = body || {};
+            const wishlistData = {
+                ...rest,
+                ...(owner.userId ? { userId: owner.userId.toString() } : { guestId: owner.guestId }),
+            };
+
+            const existingItem = await this.wishlistRepository.findByOwnerProductVariant(
+                owner,
                 wishlistData.productId,
                 wishlistData.variantId || null
             );
@@ -23,7 +29,7 @@ class WishlistService {
 
             const wishlistEntity = new WishlistEntity(wishlistData);
             const wishlist = await this.wishlistRepository.create(wishlistEntity.toData());
-            
+
             return {
                 success: true,
                 data: wishlist,
@@ -34,15 +40,15 @@ class WishlistService {
         }
     }
 
-    async getWishlistByUser(userId, filters = {}) {
+    async getWishlistByOwner(owner, filters = {}) {
         try {
-            const wishlistItems = await this.wishlistRepository.findByUser(userId, filters);
-            
-            // Convert entities to plain objects to ensure proper JSON serialization
+            const wishlistItems = await this.wishlistRepository.findByOwner(owner, filters);
+
             const plainWishlistItems = wishlistItems.map(item => {
                 const plainItem = {
                     id: item.id,
                     userId: item.userId,
+                    guestId: item.guestId,
                     productId: item.productId,
                     variantId: item.variantId,
                     product: item.product,
@@ -56,7 +62,7 @@ class WishlistService {
                 };
                 return plainItem;
             });
-            
+
             return {
                 success: true,
                 data: plainWishlistItems,
@@ -68,12 +74,15 @@ class WishlistService {
         }
     }
 
-    async getWishlistItemById(id) {
+    async getWishlistItemById(id, owner) {
         try {
             const wishlistItem = await this.wishlistRepository.findById(id);
-            
+
             if (!wishlistItem) {
-                throw new Error('Wishlist item not found');
+                throw new CustomError('Wishlist item not found', HttpStatusCode.NOT_FOUND);
+            }
+            if (!itemBelongsToOwner(wishlistItem, owner)) {
+                throw new CustomError('Forbidden', HttpStatusCode.FORBIDDEN);
             }
 
             return {
@@ -86,17 +95,20 @@ class WishlistService {
         }
     }
 
-    async updateWishlistItem(id, updateData) {
+    async updateWishlistItem(id, owner, updateData) {
         try {
             const existingItem = await this.wishlistRepository.findById(id);
-            
+
             if (!existingItem) {
-                throw new Error('Wishlist item not found');
+                throw new CustomError('Wishlist item not found', HttpStatusCode.NOT_FOUND);
+            }
+            if (!itemBelongsToOwner(existingItem, owner)) {
+                throw new CustomError('Forbidden', HttpStatusCode.FORBIDDEN);
             }
 
             const updateEntity = WishlistEntity.createUpdateEntity(updateData);
             const wishlistItem = await this.wishlistRepository.update(id, updateEntity);
-            
+
             return {
                 success: true,
                 data: wishlistItem,
@@ -107,16 +119,16 @@ class WishlistService {
         }
     }
 
-    async removeFromWishlist(userId, productId) {
+    async removeFromWishlist(owner, productId) {
         try {
-            const existingItem = await this.wishlistRepository.findByUserAndProduct(userId, productId);
-            
+            const existingItem = await this.wishlistRepository.findByOwnerAndProduct(owner, productId);
+
             if (!existingItem) {
-                throw new Error('Wishlist item not found');
+                throw new CustomError('Wishlist item not found', HttpStatusCode.NOT_FOUND);
             }
 
-            const wishlistItem = await this.wishlistRepository.deleteByUserAndProduct(userId, productId);
-            
+            const wishlistItem = await this.wishlistRepository.deleteByOwnerAndProduct(owner, productId);
+
             return {
                 success: true,
                 data: wishlistItem,
@@ -127,16 +139,19 @@ class WishlistService {
         }
     }
 
-    async deleteWishlistItem(id) {
+    async deleteWishlistItem(id, owner) {
         try {
             const existingItem = await this.wishlistRepository.findById(id);
-            
+
             if (!existingItem) {
-                throw new Error('Wishlist item not found');
+                throw new CustomError('Wishlist item not found', HttpStatusCode.NOT_FOUND);
+            }
+            if (!itemBelongsToOwner(existingItem, owner)) {
+                throw new CustomError('Forbidden', HttpStatusCode.FORBIDDEN);
             }
 
             const wishlistItem = await this.wishlistRepository.delete(id);
-            
+
             return {
                 success: true,
                 data: wishlistItem,
@@ -147,10 +162,10 @@ class WishlistService {
         }
     }
 
-    async clearWishlist(userId) {
+    async clearWishlist(owner) {
         try {
-            const deletedCount = await this.wishlistRepository.deleteByUser(userId);
-            
+            const deletedCount = await this.wishlistRepository.deleteByOwner(owner);
+
             return {
                 success: true,
                 data: { deletedCount },
@@ -161,10 +176,10 @@ class WishlistService {
         }
     }
 
-    async getWishlistStats(userId) {
+    async getWishlistStats(owner) {
         try {
-            const stats = await this.wishlistRepository.getWishlistStats(userId);
-            
+            const stats = await this.wishlistRepository.getWishlistStats(owner);
+
             return {
                 success: true,
                 data: stats,
@@ -175,14 +190,14 @@ class WishlistService {
         }
     }
 
-    async searchWishlist(userId, searchTerm) {
+    async searchWishlist(owner, searchTerm) {
         try {
             if (!searchTerm || searchTerm.trim().length === 0) {
-                throw new Error('Search term is required');
+                throw new CustomError('Search term is required', HttpStatusCode.BAD_REQUEST);
             }
 
-            const wishlistItems = await this.wishlistRepository.searchWishlist(userId, searchTerm.trim());
-            
+            const wishlistItems = await this.wishlistRepository.searchWishlist(owner, searchTerm.trim());
+
             return {
                 success: true,
                 data: wishlistItems,
@@ -194,10 +209,10 @@ class WishlistService {
         }
     }
 
-    async getWishlistByVehicle(userId, vehicleId) {
+    async getWishlistByVehicle(owner, vehicleId) {
         try {
-            const wishlistItems = await this.wishlistRepository.findByUser(userId, { selectedVehicleId: vehicleId });
-            
+            const wishlistItems = await this.wishlistRepository.findByOwner(owner, { selectedVehicleId: vehicleId });
+
             return {
                 success: true,
                 data: wishlistItems,
@@ -209,15 +224,18 @@ class WishlistService {
         }
     }
 
-    async getWishlistByPriority(userId, priority) {
+    async getWishlistByPriority(owner, priority) {
         try {
             const validPriorities = ['Low', 'Medium', 'High', 'Urgent'];
             if (!validPriorities.includes(priority)) {
-                throw new Error(`Invalid priority. Must be one of: ${validPriorities.join(', ')}`);
+                throw new CustomError(
+                    `Invalid priority. Must be one of: ${validPriorities.join(', ')}`,
+                    HttpStatusCode.BAD_REQUEST
+                );
             }
 
-            const wishlistItems = await this.wishlistRepository.findByUser(userId, { priority });
-            
+            const wishlistItems = await this.wishlistRepository.findByOwner(owner, { priority });
+
             return {
                 success: true,
                 data: wishlistItems,
@@ -229,10 +247,10 @@ class WishlistService {
         }
     }
 
-    async checkIfInWishlist(userId, productId) {
+    async checkIfInWishlist(owner, productId) {
         try {
-            const wishlistItem = await this.wishlistRepository.findByUserAndProduct(userId, productId);
-            
+            const wishlistItem = await this.wishlistRepository.findByOwnerAndProduct(owner, productId);
+
             return {
                 success: true,
                 data: { isInWishlist: !!wishlistItem, wishlistItem },
@@ -246,7 +264,7 @@ class WishlistService {
     async getItemsForStockNotification() {
         try {
             const wishlistItems = await this.wishlistRepository.findItemsForStockNotification();
-            
+
             return {
                 success: true,
                 data: wishlistItems,
@@ -261,7 +279,7 @@ class WishlistService {
     async getItemsForPriceDropNotification() {
         try {
             const wishlistItems = await this.wishlistRepository.findItemsForPriceDropNotification();
-            
+
             return {
                 success: true,
                 data: wishlistItems,
@@ -273,10 +291,10 @@ class WishlistService {
         }
     }
 
-    async getWishlistCount(userId) {
+    async getWishlistCount(owner) {
         try {
-            const count = await this.wishlistRepository.countByUser(userId);
-            
+            const count = await this.wishlistRepository.countByOwner(owner);
+
             return {
                 success: true,
                 data: { count },
@@ -287,18 +305,16 @@ class WishlistService {
         }
     }
 
-    async moveToCart(userId, productId) {
+    async moveToCart(owner, productId) {
         try {
-            const wishlistItem = await this.wishlistRepository.findByUserAndProduct(userId, productId);
-            
+            const wishlistItem = await this.wishlistRepository.findByOwnerAndProduct(owner, productId);
+
             if (!wishlistItem) {
                 throw new CustomError('Product not found in wishlist. Please add it to wishlist first.', 404);
             }
 
-            // Remove from wishlist
-            await this.wishlistRepository.deleteByUserAndProduct(userId, productId);
-            
-            // Return data for cart addition
+            await this.wishlistRepository.deleteByOwnerAndProduct(owner, productId);
+
             return {
                 success: true,
                 data: {
@@ -315,4 +331,4 @@ class WishlistService {
     }
 }
 
-export default WishlistService; 
+export default WishlistService;
