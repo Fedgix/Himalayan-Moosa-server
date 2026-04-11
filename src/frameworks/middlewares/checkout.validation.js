@@ -18,14 +18,10 @@ export const validateCheckoutInput = (req, res, next) => {
             throw new CustomError('Maximum 20 items allowed per checkout', 400, true);
         }
 
-        // Validate each item
+        // Validate each item (variantId optional — simple products have no variant)
         items.forEach((item, index) => {
             if (!item.productId) {
                 throw new CustomError(`Item at index ${index}: productId is required`, 400, true);
-            }
-
-            if (!item.variantId) {
-                throw new CustomError(`Item at index ${index}: variantId is required`, 400, true);
             }
 
             if (!item.quantity || typeof item.quantity !== 'number') {
@@ -40,13 +36,16 @@ export const validateCheckoutInput = (req, res, next) => {
                 throw new CustomError(`Item at index ${index}: maximum quantity per item is 10`, 400, true);
             }
 
-            // Validate MongoDB ObjectId format
             const objectIdRegex = /^[0-9a-fA-F]{24}$/;
             if (!objectIdRegex.test(item.productId)) {
                 throw new CustomError(`Item at index ${index}: invalid productId format`, 400, true);
             }
 
-            if (!objectIdRegex.test(item.variantId)) {
+            const hasVariant =
+                item.variantId !== undefined &&
+                item.variantId !== null &&
+                String(item.variantId).trim() !== '';
+            if (hasVariant && !objectIdRegex.test(String(item.variantId).trim())) {
                 throw new CustomError(`Item at index ${index}: invalid variantId format`, 400, true);
             }
         });

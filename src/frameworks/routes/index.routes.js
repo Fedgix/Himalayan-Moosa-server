@@ -15,6 +15,7 @@ import subscribeRouter from './subscribe.routes.js';
 import vehicleRouter from './vehicle.routes.js';
 import wishlistRouter from './wishlist.routes.js';
 import uploadRouter from '../../modules/upload/routes/upload.routes.js';
+import reviewRouter from '../../modules/review/routes/review.routes.js';
 
 const indexRouter = Router()
 
@@ -33,6 +34,7 @@ indexRouter.use('/invoice',invoiceRouter)
 indexRouter.use('/subscribe', subscribeRouter);
 indexRouter.use('/vehicle', vehicleRouter);
 indexRouter.use('/wishlist', wishlistRouter);
+indexRouter.use('/reviews', reviewRouter);
 indexRouter.use('/upload', uploadRouter);
 
 export default indexRouter

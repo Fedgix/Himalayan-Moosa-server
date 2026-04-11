@@ -14,6 +14,30 @@ const razorpay = new Razorpay({
     key_secret: config.RAZORPAY.RAZORPAY_KEY_SECRET
 });
 
+/** Resolve productId / variantId from a checkout session line (embedded docs). */
+function sessionLineIds(item) {
+    const pid = item.productId?._id?.toString?.() ?? item.productId?.toString?.() ?? String(item.productId);
+    const vid = item.variantId
+        ? item.variantId._id?.toString?.() ?? item.variantId.toString?.() ?? String(item.variantId)
+        : null;
+    return { pid, vid };
+}
+
+/**
+ * Find line index: with variantId match that variant; without variant, match productId and no variant.
+ */
+function findCheckoutSessionItemIndex(items, { productId, variantId }) {
+    const wantP = productId ? String(productId) : null;
+    const wantV = variantId ? String(variantId) : null;
+    return items.findIndex((item) => {
+        const { pid, vid } = sessionLineIds(item);
+        if (wantV) {
+            return vid === wantV && (!wantP || pid === wantP);
+        }
+        return !vid && wantP && pid === wantP;
+    });
+}
+
 export const CheckoutService = {
 
     initializeCheckout: async (userId, items, source = 'cart') => {
@@ -224,21 +248,22 @@ export const CheckoutService = {
         }
     },
 
-    updateCheckoutItem: async (userId, variantId, quantity) => {
+    updateCheckoutItem: async (userId, { variantId, productId, quantity }) => {
         try {
             const session = await CheckoutService.findActiveSession(userId);
 
-            const itemIndex = session.items.findIndex(item => item.variantId.toString() === variantId);
+            const itemIndex = findCheckoutSessionItemIndex(session.items, { productId, variantId });
             if (itemIndex === -1) {
                 throw new CustomError('Item not found in checkout session', HttpStatusCode.NOT_FOUND, true);
             }
 
-            const stockCheck = await CheckoutRepository.checkStockAvailability(variantId, quantity);
+            const item = session.items[itemIndex];
+            const { pid, vid } = sessionLineIds(item);
+            const stockKey = vid || pid;
+            const stockCheck = await CheckoutRepository.checkStockAvailability(stockKey, quantity);
             if (!stockCheck.available) {
                 throw new CustomError(`Only ${stockCheck.availableStock} items available`, HttpStatusCode.BAD_REQUEST, true);
             }
-
-            const item = session.items[itemIndex];
             item.quantity = quantity;
             item.itemTotal = (item.discountPrice || item.price) * quantity;
 
@@ -456,7 +481,9 @@ export const CheckoutService = {
             }
 
             for (const item of session.items) {
-                const stockCheck = await CheckoutRepository.checkStockAvailability(item.variantId, item.quantity);
+                const { pid, vid } = sessionLineIds(item);
+                const stockKey = vid || pid;
+                const stockCheck = await CheckoutRepository.checkStockAvailability(stockKey, item.quantity);
                 if (!stockCheck.available) {
                     throw new CustomError(
                         `Insufficient stock for ${item.productName} (${item.color}, ${item.size}). Available: ${stockCheck.availableStock}`,
@@ -746,9 +773,7 @@ export const CheckoutService = {
                 try {
                     console.log('Clearing cart items after successful payment from cart source');
 
-                    const variantIds = order.items.map(item => item.variantId);
-
-                    await CheckoutService.clearCartItemsAfterPayment(userId, variantIds);
+                    await CheckoutService.clearCartItemsAfterPayment(userId, order.items);
 
                     console.log('Successfully cleared cart items after payment');
                 } catch (cartError) {
@@ -850,11 +875,11 @@ export const CheckoutService = {
         }
     },
 
-    removeCheckoutItem: async (userId, variantId) => {
+    removeCheckoutItem: async (userId, { variantId, productId }) => {
         try {
             const session = await CheckoutService.findActiveSession(userId);
 
-            const itemIndex = session.items.findIndex(item => item.variantId.toString() === variantId);
+            const itemIndex = findCheckoutSessionItemIndex(session.items, { productId, variantId });
             if (itemIndex === -1) {
                 throw new CustomError('Item not found in checkout session', HttpStatusCode.NOT_FOUND, true);
             }
@@ -923,19 +948,42 @@ export const CheckoutService = {
         }
     },
 
-    clearCartItemsAfterPayment: async (userId, variantIds) => {
+    clearCartItemsAfterPayment: async (userId, orderItems) => {
         try {
-            console.log('Clearing cart items for variants:', variantIds);
+            if (!orderItems?.length) {
+                return { success: true, itemsRemoved: 0, removedItems: [] };
+            }
+
+            console.log('Clearing cart items after payment for order lines:', orderItems.length);
 
             const userCart = await cartService.getUserCart(userId);
 
-            const cartItemsToRemove = userCart.items.filter(cartItem => 
-                variantIds.some(variantId => variantId.toString() === cartItem.variantId._id.toString())
-            );
+            const cartItemsToRemove = userCart.items.filter((cartItem) => {
+                const cpid =
+                    cartItem.productId?._id?.toString?.() ??
+                    cartItem.productId?.toString?.() ??
+                    String(cartItem.productId);
+                const cvid = cartItem.variantId
+                    ? cartItem.variantId._id?.toString?.() ??
+                      cartItem.variantId.toString?.() ??
+                      String(cartItem.variantId)
+                    : null;
+
+                return orderItems.some((orderItem) => {
+                    const opid = orderItem.productId?._id?.toString?.() ?? orderItem.productId?.toString?.();
+                    const ovid = orderItem.variantId
+                        ? orderItem.variantId._id?.toString?.() ?? orderItem.variantId?.toString?.()
+                        : null;
+                    if (ovid) {
+                        return cvid === ovid && cpid === opid;
+                    }
+                    return !cvid && cpid === opid;
+                });
+            });
 
             for (const cartItem of cartItemsToRemove) {
                 await cartService.removeCartItem(cartItem._id, userId);
-                console.log(`Removed cart item ${cartItem._id} for variant ${cartItem.variantId._id}`);
+                console.log(`Removed cart item ${cartItem._id}`);
             }
 
             console.log(`Successfully removed ${cartItemsToRemove.length} items from cart`);
@@ -943,10 +991,10 @@ export const CheckoutService = {
             return {
                 success: true,
                 itemsRemoved: cartItemsToRemove.length,
-                removedItems: cartItemsToRemove.map(item => ({
+                removedItems: cartItemsToRemove.map((item) => ({
                     cartItemId: item._id,
-                    variantId: item.variantId._id,
-                    productName: item.productId.name,
+                    variantId: item.variantId?._id ?? item.variantId,
+                    productName: item.productId?.name,
                     quantity: item.quantity
                 }))
             };

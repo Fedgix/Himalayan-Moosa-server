@@ -102,12 +102,21 @@ export const CheckoutRepository = {
             }
     
             const finalPrice = product.pricing.salePrice || product.pricing.originalPrice;
-            
+
+            const normalizedVariantId =
+                item.variantId !== undefined &&
+                item.variantId !== null &&
+                String(item.variantId).trim() !== ""
+                    ? String(item.variantId).trim()
+                    : null;
+
             // Handle variant if provided
             let variantData = null;
-            if (item.variantId) {
+            if (normalizedVariantId) {
                 // Find variant in product's variants array
-                const variant = product.variants.find(v => v._id.toString() === item.variantId.toString());
+                const variant = product.variants.find(
+                    (v) => v._id.toString() === normalizedVariantId
+                );
                 if (variant) {
                     variantData = {
                         variantId: variant._id,

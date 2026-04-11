@@ -1,8 +1,15 @@
 //checkout.controller.js
-import CheckoutService from "../services/checkout.services.js"; 
-import CustomError from "../../../utils/custom.error.js"; 
-import HttpStatusCode from "../../../utils/http.status.codes.js"; 
+import mongoose from "mongoose";
+import CheckoutService from "../services/checkout.services.js";
+import CustomError from "../../../utils/custom.error.js";
+import HttpStatusCode from "../../../utils/http.status.codes.js";
 import { sendSuccess } from "../../../utils/response.handler.js";
+
+function normalizeOptionalBodyId(id) {
+    if (id === undefined || id === null) return null;
+    const s = String(id).trim();
+    return s === "" ? null : s;
+}
 
 export const CheckoutController = {
     
@@ -26,13 +33,32 @@ export const CheckoutController = {
     updateCheckoutItem: async (req, res) => {
         try {
             const userId = req.user.id;
-            const { variantId, quantity } = req.body;
-            if (!variantId || !quantity || quantity <= 0) {
-                throw new CustomError('Variant ID and valid quantity are required', HttpStatusCode.BAD_REQUEST, true);
+            const { variantId, productId, quantity } = req.body;
+            if (quantity === undefined || quantity === null || quantity <= 0) {
+                throw new CustomError("Valid quantity is required", HttpStatusCode.BAD_REQUEST, true);
             }
-            
-            const result = await CheckoutService.updateCheckoutItem(userId, variantId, quantity);
-            
+            const normV = normalizeOptionalBodyId(variantId);
+            const normP = normalizeOptionalBodyId(productId);
+            if (!normV && !normP) {
+                throw new CustomError(
+                    "Provide variantId (for options like size/color) or productId (for products without variants) to identify the line item",
+                    HttpStatusCode.BAD_REQUEST,
+                    true
+                );
+            }
+            if (normV && !mongoose.Types.ObjectId.isValid(normV)) {
+                throw new CustomError("Invalid variant ID format", HttpStatusCode.BAD_REQUEST, true);
+            }
+            if (normP && !mongoose.Types.ObjectId.isValid(normP)) {
+                throw new CustomError("Invalid product ID format", HttpStatusCode.BAD_REQUEST, true);
+            }
+
+            const result = await CheckoutService.updateCheckoutItem(userId, {
+                variantId: normV,
+                productId: normP,
+                quantity
+            });
+
             sendSuccess(res, result.message, result.data, HttpStatusCode.OK);
         } catch (error) {
             throw error;
@@ -42,14 +68,28 @@ export const CheckoutController = {
     removeCheckoutItem: async (req, res) => {
         try {
             const userId = req.user.id;
-            const { variantId } = req.body;
-            
-            if (!variantId) {
-                throw new CustomError('Variant ID is required', HttpStatusCode.BAD_REQUEST, true);
+            const { variantId, productId } = req.body;
+            const normV = normalizeOptionalBodyId(variantId);
+            const normP = normalizeOptionalBodyId(productId);
+            if (!normV && !normP) {
+                throw new CustomError(
+                    "Provide variantId or productId to identify which item to remove",
+                    HttpStatusCode.BAD_REQUEST,
+                    true
+                );
             }
-            
-            const result = await CheckoutService.removeCheckoutItem(userId, variantId);
-            
+            if (normV && !mongoose.Types.ObjectId.isValid(normV)) {
+                throw new CustomError("Invalid variant ID format", HttpStatusCode.BAD_REQUEST, true);
+            }
+            if (normP && !mongoose.Types.ObjectId.isValid(normP)) {
+                throw new CustomError("Invalid product ID format", HttpStatusCode.BAD_REQUEST, true);
+            }
+
+            const result = await CheckoutService.removeCheckoutItem(userId, {
+                variantId: normV,
+                productId: normP
+            });
+
             sendSuccess(res, result.message, result.data, HttpStatusCode.OK);
         } catch (error) {
             throw error;

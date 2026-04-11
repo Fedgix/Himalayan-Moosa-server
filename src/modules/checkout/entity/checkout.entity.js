@@ -44,8 +44,8 @@ export class CheckoutEntity {
         }
 
         this.items.forEach((item, index) => {
-            if (!item.productId || !item.variantId || !item.quantity || !item.price) {
-                throw new Error(`Invalid item at index ${index}: missing required fields`);
+            if (item.productId == null || item.quantity == null || item.price === undefined || item.price === null) {
+                throw new Error(`Invalid item at index ${index}: product, quantity, and price are required`);
             }
             if (item.quantity <= 0) {
                 throw new Error(`Invalid quantity for item at index ${index}`);

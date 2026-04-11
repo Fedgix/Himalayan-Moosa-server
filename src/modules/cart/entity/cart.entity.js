@@ -15,7 +15,7 @@ export class CartEntity {
 
     toDocument(doc = {}) {
         doc.productId = this.productId;
-        doc.variantId = this.variantId;
+        doc.variantId = this.variantId === undefined ? null : this.variantId;
         doc.userId = this.userId;
         doc.quantity = this.quantity;
 
@@ -27,10 +27,22 @@ export class CartEntity {
     }
 
     validate() {
+        this._normalizeOptionalIds();
         this._validateProductId();
         this._validateVariantId();
         this._validateUserId();
-        this._validateQuantity(); 
+        this._validateQuantity();
+    }
+
+    /** Empty string from JSON must become null before Mongoose save (avoids invalid ObjectId cast). */
+    _normalizeOptionalIds() {
+        if (this.variantId === undefined || this.variantId === null) {
+            this.variantId = null;
+            return;
+        }
+        if (typeof this.variantId === "string" && this.variantId.trim() === "") {
+            this.variantId = null;
+        }
     }
 
     _validateId(id) { 
@@ -47,11 +59,15 @@ export class CartEntity {
     }
 
     _validateVariantId() {
-        // variantId is optional - only validate if provided
-        if (this.variantId && 
-            ((typeof this.variantId === 'string' && this.variantId.trim().length === 0) || 
-            !this._validateId(this.variantId))) {
-            throw new CustomError("Provide a valid variantId", HttpStatusCode.BAD_REQUEST, true);
+        if (this.variantId === null || this.variantId === undefined) {
+            return;
+        }
+        if (!this._validateId(this.variantId)) {
+            throw new CustomError(
+                "The selected product option is not valid. Pick a valid option or refresh the page.",
+                HttpStatusCode.BAD_REQUEST,
+                true
+            );
         }
     }
 

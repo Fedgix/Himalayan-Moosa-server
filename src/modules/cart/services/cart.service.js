@@ -4,8 +4,17 @@ import CustomError from "../../../utils/custom.error.js";
 import HttpStatusCode from "../../../utils/http.status.codes.js";
 import Product from "../../product/models/product.model.js";
 
+/** Treat "", whitespace, null, undefined as "no variant" (simple products). */
+function normalizeOptionalVariantId(variantId) {
+    if (variantId === undefined || variantId === null) return null;
+    const s = String(variantId).trim();
+    return s === "" ? null : s;
+}
+
 export const cartService = {
     async addToCart(userId, productId, variantId, quantity = 1) {
+        variantId = normalizeOptionalVariantId(variantId);
+
         // Validate product exists and is active
         const product = await Product.findById(productId);
         if (!product) {

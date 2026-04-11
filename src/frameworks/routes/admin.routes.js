@@ -5,6 +5,7 @@ import ProductController from "../../modules/product/controllers/product.control
 import CategoryController from "../../modules/category/controllers/category.controller.js";
 import { authenticateAdmin, requireAdminRole } from "../../modules/admin/middlewares/admin.auth.middleware.js";
 import catchAsync from "../middlewares/catch.async.js";
+import { reviewController } from "../../modules/review/controllers/review.controller.js";
 
 const router = Router();
 const adminController = new AdminController();
@@ -34,5 +35,8 @@ router.patch('/products/:id/deactivate', productController.deactivateProduct);
 // Order management routes (admin only)
 router.get('/orders', adminController.getAllOrders);
 router.patch('/orders/:id/status', adminController.updateOrderStatus);
+
+// Reviews — remove any review (moderation)
+router.delete('/reviews/:reviewId', catchAsync(reviewController.adminRemove));
 
 export default router; 
