@@ -25,6 +25,7 @@ const allowedOrigins = [
     'http://localhost:5000',
     'https://admin.moosagarage.in',
     'https://www.moosagarage.in',
+    'https://himalayan-moosa-frontend.vercel.app',
 ];
 
 const allowedOriginsUnique = [...new Set(allowedOrigins.filter(Boolean))];
