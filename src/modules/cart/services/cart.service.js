@@ -23,6 +23,21 @@ function normalizeOwner(owner) {
     return null;
 }
 
+function isCompatibleVehicleVariant(product, variantId) {
+    if (!product || !variantId) return false;
+    const wanted = String(variantId);
+
+    const compatibilityVariantMatch = (product.compatibility?.specificVariants || []).some(
+        (entry) => entry?.variantId?.toString?.() === wanted
+    );
+    if (compatibilityVariantMatch) return true;
+
+    const suitableForVariantMatch = (product.suitableFor?.variantIds || []).some(
+        (id) => id?.toString?.() === wanted
+    );
+    return suitableForVariantMatch;
+}
+
 export const cartService = {
     async addToCart(owner, productId, variantId, quantity = 1) {
         owner = normalizeOwner(owner);
@@ -47,10 +62,14 @@ export const cartService = {
                 variant: productId,
                 isActive: true,
             });
-            if (!variant) {
-                throw new CustomError("Product variant not found or inactive", HttpStatusCode.NOT_FOUND, true);
+            if (variant) {
+                stock = variant.inventory?.stock || 0;
+            } else {
+                const isVehicleCompatibilityVariant = isCompatibleVehicleVariant(product, variantId);
+                if (!isVehicleCompatibilityVariant) {
+                    throw new CustomError("Product variant not found or inactive", HttpStatusCode.NOT_FOUND, true);
+                }
             }
-            stock = variant.inventory?.stock || 0;
         }
 
         if (stock < quantity) {
