@@ -1289,9 +1289,11 @@ class ProductService {
   }
 
   // New methods for variant handling
-  async getVariantsByParentId(parentId) {
+  async getVariantsByParentId(parentId, options = {}) {
     try {
-      const variants = await this.productRepository.findVariantsByParentId(parentId);
+      const variants = await this.productRepository.findVariantsByParentId(parentId, {
+        includeInactive: options.includeInactive === true
+      });
       const variantEntities = variants.map(variant => ProductEntity.fromModel(variant));
 
       return {
@@ -1306,6 +1308,11 @@ class ProductService {
 
   async createVariant(variantData, parentId) {
     try {
+      if (variantData.vehicleCompatibility && !variantData.compatibility) {
+        variantData.compatibility = variantData.vehicleCompatibility;
+      }
+      delete variantData.vehicleCompatibility;
+
       variantData = this.normalizeCompatibilityInput(variantData);
 
       // Validate parent product exists
@@ -1366,6 +1373,13 @@ class ProductService {
 
   async updateVariant(variantId, updateData) {
     try {
+      if (updateData.vehicleCompatibility && !updateData.compatibility) {
+        updateData.compatibility = updateData.vehicleCompatibility;
+      }
+      delete updateData.vehicleCompatibility;
+
+      updateData = this.normalizeCompatibilityInput(updateData);
+
       // Ensure variant fields are not changed
       delete updateData.isVariant;
       delete updateData.variant;

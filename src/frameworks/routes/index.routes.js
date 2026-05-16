@@ -4,6 +4,7 @@ import adminRouter from './admin.routes.js';
 import bannerRouter from './banner.routes.js';
 import categoryRouter from './category.route.js';
 import productRouter from './product.routes.js';
+import productVariantRouter from './product-variant.routes.js';
 import cartRouter from './cart.routes.js';
 import userRouter from './user.routes.js';
 import addressRouter from './address.route.js';
@@ -24,6 +25,7 @@ indexRouter.use('/admin', adminRouter)
 indexRouter.use('/banner', bannerRouter)
 indexRouter.use('/category', categoryRouter)
 indexRouter.use('/product',productRouter)
+indexRouter.use('/product-variant', productVariantRouter)
 indexRouter.use('/cart', cartRouter)
 indexRouter.use('/users', userRouter);
 indexRouter.use('/address', addressRouter)

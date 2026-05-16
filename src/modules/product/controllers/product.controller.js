@@ -298,6 +298,12 @@ class ProductController {
     return sendSuccess(res, result.message, result.data, 200);
   });
 
+  listProductVariants = catchAsync(async (req, res) => {
+    const { productId } = req.params;
+    const result = await this.productService.getVariantsByParentId(productId, { includeInactive: true });
+    return sendSuccess(res, result.message, result.data, 200);
+  });
+
   // Create variant for a product
   createVariant = catchAsync(async (req, res) => {
     const { productId } = req.params;
