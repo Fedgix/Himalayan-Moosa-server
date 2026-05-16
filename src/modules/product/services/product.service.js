@@ -607,6 +607,28 @@ class ProductService {
     }
   }
 
+  async deleteProductImages(product) {
+    if (!product?.images) return;
+
+    if (product.images.primary) {
+      try {
+        await uploadService.deleteFromCloudinaryByUrl(product.images.primary);
+      } catch (error) {
+        console.error('Error deleting primary image from Cloudinary:', error);
+      }
+    }
+
+    if (Array.isArray(product.images.gallery)) {
+      for (const imageUrl of product.images.gallery) {
+        try {
+          await uploadService.deleteFromCloudinaryByUrl(imageUrl);
+        } catch (error) {
+          console.error('Error deleting gallery image from Cloudinary:', error);
+        }
+      }
+    }
+  }
+
   async deleteProduct(id) {
     try {
       const existingProduct = await this.productRepository.findById(id);
@@ -615,27 +637,16 @@ class ProductService {
         throw new Error('Product not found');
       }
 
-      // Delete primary image from Cloudinary before deleting the record
-      if (existingProduct.images?.primary) {
-        try {
-          await uploadService.deleteFromCloudinaryByUrl(existingProduct.images.primary);
-        } catch (error) {
-          console.error('Error deleting primary image from Cloudinary:', error);
-          // Continue with deletion even if image deletion fails
+      // Delete child variants first when removing a parent product
+      if (!existingProduct.isVariant) {
+        const variants = await this.productRepository.findVariantsByParentId(id, { includeInactive: true });
+        for (const variant of variants) {
+          await this.deleteProductImages(variant);
+          await this.productRepository.deleteById(variant._id);
         }
       }
 
-      // Delete gallery images from Cloudinary before deleting the record
-      if (existingProduct.images?.gallery) {
-        try {
-          for (const imageUrl of existingProduct.images.gallery) {
-            await uploadService.deleteFromCloudinaryByUrl(imageUrl);
-        }
-      } catch (error) {
-          console.error('Error deleting gallery images from Cloudinary:', error);
-        // Continue with deletion even if image deletion fails
-      }
-    }
+      await this.deleteProductImages(existingProduct);
 
       const product = await this.productRepository.deleteById(id);
       const productEntity = ProductEntity.fromModel(product);
@@ -1387,7 +1398,8 @@ class ProductService {
         throw new Error('Product is not a variant');
       }
 
-      await this.productRepository.delete(variantId);
+      await this.deleteProductImages(variant);
+      await this.productRepository.deleteById(variantId);
       
       return {
         success: true,

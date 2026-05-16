@@ -150,7 +150,15 @@ class ProductRepository {
 
   async findAllForAdmin(filters = {}) {
     try {
-      const query = {}; // No isActive filter for admin
+      const query = {
+        // Admin product list shows parent products only (variants managed separately)
+        $or: [{ isVariant: { $ne: true } }, { isVariant: { $exists: false } }]
+      };
+
+      // Hide soft-deleted/inactive products unless explicitly requested
+      if (filters.includeInactive !== 'true') {
+        query.isActive = true;
+      }
       
       if (filters.name) {
         query.name = { $regex: filters.name, $options: 'i' };
@@ -358,13 +366,8 @@ class ProductRepository {
 
   async deleteById(id) {
     try {
-      const product = await Product.findByIdAndUpdate(
-        id,
-        { isActive: false },
-        { new: true }
-      );
-  
-    return product;
+      const product = await Product.findByIdAndDelete(id);
+      return product;
     } catch (error) {
       throw error;
     }
