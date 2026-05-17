@@ -17,9 +17,17 @@ class ProductRepository {
         .populate('category')
         .populate('suitableForVariants')
         .populate('suitableForModels')
-        .populate('compatibleVariants')
-        .populate('compatibleModels')
-        .populate('compatibleMakes');
+        .populate({
+          path: 'compatibleVariants',
+          select: 'name slug yearRange modelId',
+          populate: {
+            path: 'modelId',
+            select: 'name slug makeId',
+            populate: { path: 'makeId', select: 'name slug' }
+          }
+        })
+        .populate({ path: 'compatibleModels', select: 'name slug', populate: { path: 'makeId', select: 'name slug' } })
+        .populate('compatibleMakes', 'name slug');
       return product;
     } catch (error) {
       throw error;

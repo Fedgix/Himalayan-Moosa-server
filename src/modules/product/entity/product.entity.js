@@ -1,5 +1,6 @@
 import CustomError from '../../../utils/custom.error.js';
 import HttpStatusCode from '../../../utils/http.status.codes.js';
+import { formatCompatibilityFromDocument } from '../utils/compatibility.enricher.js';
 
 export class ProductEntity {
   constructor(data = {}) {
@@ -39,14 +40,8 @@ export class ProductEntity {
     this.suitableForVariants = data.suitableForVariants || [];
     this.suitableForModels = data.suitableForModels || [];
 
-    // Vehicle Compatibility
-    this.compatibility = {
-      type: data.compatibility?.type || 'universal',
-      specificVariants: data.compatibility?.specificVariants || [],
-      compatibleModels: data.compatibility?.compatibleModels || [],
-      compatibleMakes: data.compatibility?.compatibleMakes || [],
-      notes: data.compatibility?.notes || ''
-    };
+    // Vehicle Compatibility (enriched with names when populated from DB)
+    this.compatibility = formatCompatibilityFromDocument(data);
 
     // Features and Specifications
     this.features = data.features || [];
@@ -111,7 +106,10 @@ export class ProductEntity {
 
   static fromModel(model) {
     if (!model) return null;
-    return new ProductEntity(model.toObject());
+    const raw = typeof model.toObject === 'function'
+      ? model.toObject({ virtuals: true })
+      : model;
+    return new ProductEntity(raw);
   }
 
   static fromModelList(models) {

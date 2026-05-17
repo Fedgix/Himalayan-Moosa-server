@@ -3,6 +3,10 @@ import { ProductEntity } from '../entity/product.entity.js';
 import { uploadService } from '../../upload/services/upload.service.js';
 import CustomError from '../../../utils/custom.error.js';
 import HttpStatusCode from '../../../utils/http.status.codes.js';
+import {
+  enrichCompatibilityFromDb,
+  enrichProductsCompatibility
+} from '../utils/compatibility.enricher.js';
 
 class ProductService {
   constructor() {
@@ -10,31 +14,52 @@ class ProductService {
   }
 
   normalizeCompatibilityInput(productData = {}) {
-    if (!productData.compatibility || !Array.isArray(productData.compatibility.specificVariants)) {
+    if (!productData.compatibility) {
       return productData;
     }
 
-    // Accept both:
-    // 1) ["variantId1", "variantId2"]
-    // 2) [{ variantId: "...", yearRange: {...} }]
-    productData.compatibility.specificVariants = productData.compatibility.specificVariants
-      .filter((item) => item !== null && item !== undefined && item !== '')
-      .map((item) => {
-        if (typeof item === 'string') {
-          return { variantId: item };
-        }
+    const compatibility = productData.compatibility;
 
-        if (typeof item === 'object') {
-          // Handle frontend variants like { id: "..."} as well.
-          if (!item.variantId && item.id) {
-            return { ...item, variantId: item.id };
+    if (Array.isArray(compatibility.compatibleMakes)) {
+      compatibility.compatibleMakes = compatibility.compatibleMakes
+        .map((item) => (typeof item === 'object' ? (item.id ?? item._id) : item))
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(compatibility.compatibleModels)) {
+      compatibility.compatibleModels = compatibility.compatibleModels
+        .map((item) => (typeof item === 'object' ? (item.id ?? item._id) : item))
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(compatibility.specificVariants)) {
+      // Accept both:
+      // 1) ["variantId1", "variantId2"]
+      // 2) [{ variantId: "...", yearRange: {...} }]
+      compatibility.specificVariants = compatibility.specificVariants
+        .filter((item) => item !== null && item !== undefined && item !== '')
+        .map((item) => {
+          if (typeof item === 'string') {
+            return { variantId: item };
           }
+
+          if (typeof item === 'object') {
+            const variantId = item.variantId ?? item.id;
+            const normalized = { variantId };
+            if (item.yearRange) normalized.yearRange = item.yearRange;
+            return normalized;
+          }
+
           return item;
-        }
+        });
+    }
 
-        return item;
-      });
+    return productData;
+  }
 
+  async enrichProductCompatibility(productData) {
+    if (!productData) return productData;
+    productData.compatibility = await enrichCompatibilityFromDb(productData.compatibility);
     return productData;
   }
 
@@ -151,17 +176,19 @@ class ProductService {
       
       const productEntity = ProductEntity.fromModel(product);
       const productData = productEntity.toJSON();
+      await this.enrichProductCompatibility(productData);
       
       // Add variants to product data
-      productData.variants = variants.map(variant => {
+      productData.variants = await Promise.all(variants.map(async (variant) => {
         const variantEntity = ProductEntity.fromModel(variant);
         const variantData = variantEntity.toJSON();
+        await this.enrichProductCompatibility(variantData);
         return {
           ...variantData,
           discountPercentage: variantData.pricing?.salePrice ? 
             Math.round(((variantData.pricing.originalPrice - variantData.pricing.salePrice) / variantData.pricing.originalPrice) * 100) : 0
         };
-      });
+      }));
 
       console.log('✅ [getProductById] Returning product data. Product ID in response:', productData.id);
       console.log('✅ [getProductById] Response structure:', {
@@ -334,6 +361,7 @@ class ProductService {
       if (result.data && result.pagination) {
         const productEntities = ProductEntity.fromModelList(result.data);
         let productData = productEntities.map(entity => entity.toJSON());
+        productData = await enrichProductsCompatibility(productData);
         
         // Include variants if requested
         if (filters.includeVariants === 'true') {
@@ -343,15 +371,16 @@ class ProductService {
               { includeInactive: true } // Include inactive variants for admin
             );
             
-            productData[i].variants = variants.map(variant => {
+            productData[i].variants = await Promise.all(variants.map(async (variant) => {
               const variantEntity = ProductEntity.fromModel(variant);
               const variantData = variantEntity.toJSON();
+              await this.enrichProductCompatibility(variantData);
               return {
                 ...variantData,
                 discountPercentage: variantData.pricing?.salePrice ? 
                   Math.round(((variantData.pricing.originalPrice - variantData.pricing.salePrice) / variantData.pricing.originalPrice) * 100) : 0
               };
-            });
+            }));
           }
         }
         
@@ -366,6 +395,7 @@ class ProductService {
         // Non-paginated response (backward compatibility)
         const productEntities = ProductEntity.fromModelList(result);
         let productData = productEntities.map(entity => entity.toJSON());
+        productData = await enrichProductsCompatibility(productData);
         
         // Include variants if requested
         if (filters.includeVariants === 'true') {
@@ -375,15 +405,16 @@ class ProductService {
               { includeInactive: true } // Include inactive variants for admin
             );
             
-            productData[i].variants = variants.map(variant => {
+            productData[i].variants = await Promise.all(variants.map(async (variant) => {
               const variantEntity = ProductEntity.fromModel(variant);
               const variantData = variantEntity.toJSON();
+              await this.enrichProductCompatibility(variantData);
               return {
                 ...variantData,
                 discountPercentage: variantData.pricing?.salePrice ? 
                   Math.round(((variantData.pricing.originalPrice - variantData.pricing.salePrice) / variantData.pricing.originalPrice) * 100) : 0
               };
-            });
+            }));
           }
         }
         
@@ -469,20 +500,22 @@ class ProductService {
       
       const productEntity = ProductEntity.fromModel(product);
       const productData = productEntity.toJSON();
+      await this.enrichProductCompatibility(productData);
       
       console.log('✅ [getProductWithVariants] Product ID after conversion:', productData.id, 'Type:', typeof productData.id);
       
       // Map variants to the expected format
-      const variantsData = variants.map(variant => {
+      const variantsData = await Promise.all(variants.map(async (variant) => {
         const variantEntity = ProductEntity.fromModel(variant);
         const variantData = variantEntity.toJSON();
+        await this.enrichProductCompatibility(variantData);
         return {
           ...variantData,
           discountPercentage: variantData.pricing?.salePrice ? 
             Math.round(((variantData.pricing.originalPrice - variantData.pricing.salePrice) / variantData.pricing.originalPrice) * 100) : 0,
           stockStatus: variantData.inventory?.stock > 0 ? 'in_stock' : 'out_of_stock'
         };
-      });
+      }));
 
       // Remove variants from productData as we'll send it separately
       const { variants: _, ...productWithoutVariants } = productData;
