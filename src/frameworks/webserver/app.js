@@ -31,31 +31,27 @@ const allowedOrigins = [
 
 const allowedOriginsUnique = [...new Set(allowedOrigins.filter(Boolean))];
 
+/** Vercel production + preview deploys for admin and storefront */
+const vercelMoosaOrigin =
+    /^https:\/\/himalayan-moosa-(admin|frontend)(-[a-z0-9-]+)*\.vercel\.app$/i;
+
+function isAllowedCorsOrigin(origin) {
+    if (!origin) return true;
+    if (localFrontendOrigins.has(origin)) return true;
+    if (process.env.NODE_ENV !== 'production') {
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) return true;
+    }
+    if (allowedOriginsUnique.includes(origin)) return true;
+    if (vercelMoosaOrigin.test(origin)) return true;
+    return false;
+}
+
 // CORS configuration - Simplified and permissive for development
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, postman, etc.)
-        if (!origin) {
+        if (isAllowedCorsOrigin(origin)) {
             return callback(null, true);
         }
-
-        if (localFrontendOrigins.has(origin)) {
-            return callback(null, true);
-        }
-
-        // In development, allow all localhost origins
-        if (process.env.NODE_ENV !== 'production') {
-            if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-                return callback(null, true);
-            }
-        }
-
-        // Check allowed origins
-        if (allowedOriginsUnique.includes(origin)) {
-            return callback(null, true);
-        }
-
-        // Default deny
         callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'],
