@@ -8,7 +8,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon src/frameworks/webserver/server.js",
-    "start": "cross-env NODE_ENV=production nodemon src/frameworks/webserver/server.js",
+    "start": "NODE_ENV=production node src/frameworks/webserver/server.js",
     "create-admin-dashboard": "cross-env NODE_ENV=development node scripts/create-dashboard-admin.js"
   },
   "dependencies": {
@@ -29,13 +29,13 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.3",
-    "nodemon": "^3.1.10",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "razorpay": "^2.9.6",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.10"
   }
 }
