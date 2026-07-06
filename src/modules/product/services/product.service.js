@@ -841,10 +841,10 @@ class ProductService {
 
   async getProductsByCategory(categoryId, filters = {}) {
     try {
-      if (!categoryId) {
-        throw new Error('Category ID is required');
+      if (!categoryId && !filters.excludeCategoryIds) {
+        throw new Error('categoryId or excludeCategoryIds is required');
       }
-      
+
       const result = await this.productRepository.getProductsByCategory(categoryId, filters);
       
       // Check if result has pagination (object with products and pagination)

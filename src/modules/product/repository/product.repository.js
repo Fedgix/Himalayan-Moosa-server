@@ -1,4 +1,14 @@
+import mongoose from 'mongoose';
 import Product from '../models/product.model.js';
+import Category from '../../category/models/category.model.js';
+
+function parseObjectIdList(value) {
+  if (!value) return [];
+  const parts = Array.isArray(value) ? value : String(value).split(',');
+  return parts
+    .map((id) => id.trim())
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+}
 
 class ProductRepository {
   async create(productData) {
@@ -615,14 +625,48 @@ class ProductRepository {
     }
   }
 
+  async _buildCategoryFilterQuery(categoryId, filters = {}) {
+    const query = { isActive: true };
+    const excludeIds = parseObjectIdList(filters.excludeCategoryIds);
+    const excludeSet = new Set(excludeIds.map(String));
+    let includeIds = [];
+
+    if (categoryId) {
+      const includeSubcategories =
+        filters.includeSubcategories === 'true' || filters.includeSubcategories === true;
+
+      if (includeSubcategories) {
+        const subcategories = await Category.find({
+          parentCategory: categoryId,
+          isActive: true,
+        }).select('_id');
+        includeIds = [
+          String(categoryId),
+          ...subcategories.map((c) => String(c._id)),
+        ];
+      } else {
+        includeIds = [String(categoryId)];
+      }
+
+      includeIds = includeIds.filter((id) => !excludeSet.has(id));
+    }
+
+    if (includeIds.length > 0) {
+      query.categoryId =
+        includeIds.length === 1 ? includeIds[0] : { $in: includeIds };
+    } else if (!categoryId && excludeIds.length > 0) {
+      query.categoryId = { $nin: excludeIds };
+    } else {
+      query.categoryId = { $in: [] };
+    }
+
+    return query;
+  }
+
   async getProductsByCategory(categoryId, filters = {}) {
     try {
-      const query = { 
-        isActive: true,
-        categoryId: categoryId
-      };
-      
-      // Apply filters
+      const query = await this._buildCategoryFilterQuery(categoryId, filters);
+
       if (filters.page || filters.limit) {
         const page = parseInt(filters.page) || 1;
         const limit = parseInt(filters.limit) || 10;
