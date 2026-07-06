@@ -27,6 +27,9 @@ const allowedOrigins = [
     'https://www.moosagarage.in',
     'https://himalayan-moosa-frontend.vercel.app',
     'https://himalayan-moosa-admin.vercel.app',
+    'https://www.himalayanmoosa.com',
+    'https://himalayanmoosa.com',
+    'https://admin.himalayanmoosa.com',
 ];
 
 const allowedOriginsUnique = [...new Set(allowedOrigins.filter(Boolean))];
@@ -34,6 +37,10 @@ const allowedOriginsUnique = [...new Set(allowedOrigins.filter(Boolean))];
 /** Vercel production + preview deploys for admin and storefront */
 const vercelMoosaOrigin =
     /^https:\/\/himalayan-moosa-(admin|frontend)(-[a-z0-9-]+)*\.vercel\.app$/i;
+
+/** Production custom domains — www, admin, apex */
+const himalayanMoosaOrigin =
+    /^https:\/\/(www\.|admin\.)?himalayanmoosa\.com$/i;
 
 function isAllowedCorsOrigin(origin) {
     if (!origin) return true;
@@ -43,6 +50,7 @@ function isAllowedCorsOrigin(origin) {
     }
     if (allowedOriginsUnique.includes(origin)) return true;
     if (vercelMoosaOrigin.test(origin)) return true;
+    if (himalayanMoosaOrigin.test(origin)) return true;
     return false;
 }
 
