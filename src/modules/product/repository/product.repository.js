@@ -89,10 +89,15 @@ class ProductRepository {
       if (filters.sku) {
         query.sku = filters.sku;
       }
-      
-      if (filters.categoryId) {
-        query.categoryId = filters.categoryId;
+
+      const categoryFilter = await this._resolveCategoryFilter(
+        filters.categoryId,
+        filters
+      );
+      if (categoryFilter !== null) {
+        query.categoryId = categoryFilter;
       }
+
       if (filters.suitableForVariantId) {
         query['suitableFor.variantIds'] = filters.suitableForVariantId;
       }
@@ -625,9 +630,10 @@ class ProductRepository {
     }
   }
 
-  async _buildCategoryFilterQuery(categoryId, filters = {}) {
-    const query = { isActive: true };
+  async _resolveCategoryFilter(categoryId, filters = {}) {
     const excludeIds = parseObjectIdList(filters.excludeCategoryIds);
+    if (!categoryId && excludeIds.length === 0) return null;
+
     const excludeSet = new Set(excludeIds.map(String));
     let includeIds = [];
 
@@ -652,14 +658,20 @@ class ProductRepository {
     }
 
     if (includeIds.length > 0) {
-      query.categoryId =
-        includeIds.length === 1 ? includeIds[0] : { $in: includeIds };
-    } else if (!categoryId && excludeIds.length > 0) {
-      query.categoryId = { $nin: excludeIds };
-    } else {
-      query.categoryId = { $in: [] };
+      return includeIds.length === 1 ? includeIds[0] : { $in: includeIds };
     }
+    if (!categoryId && excludeIds.length > 0) {
+      return { $nin: excludeIds };
+    }
+    return { $in: [] };
+  }
 
+  async _buildCategoryFilterQuery(categoryId, filters = {}) {
+    const query = { isActive: true };
+    const categoryFilter = await this._resolveCategoryFilter(categoryId, filters);
+    if (categoryFilter !== null) {
+      query.categoryId = categoryFilter;
+    }
     return query;
   }
 
