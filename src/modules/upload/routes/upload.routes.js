@@ -23,10 +23,9 @@ const upload = multer({
   }
 });
 
-// Upload single image to Cloudinary
-router.post('/cloudinary', 
-  authenticateFlexible, 
-  upload.single('image'), 
+// Upload single image to Cloudinary (public — no auth)
+router.post('/cloudinary',
+  upload.single('image'),
   uploadController.uploadToCloudinary
 );
 
